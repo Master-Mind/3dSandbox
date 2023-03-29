@@ -52,9 +52,20 @@ private:
 	static void CreateSwapChain();
 	static void CreateImageViews();
 
+	static void CreateRenderPass();
 	static void CreateGraphicsPipeline();
 	static void CompileShaders();
 	static VkShaderModule CreateShaderModule(std::vector<char>& code);
+
+	static void CreateFramebuffers();
+
+	static void CreateCommandPool();
+	static void CreateCommandBuffers();
+	static void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+	static void CreateSyncObjects();
+
+	static void DrawFrame();
 
 	//glfw
 	inline static GLFWwindow* _window = nullptr;
@@ -80,6 +91,19 @@ private:
 	inline static std::vector<VkImageView> _swapChainImageViews;
 
 	inline static VkSurfaceKHR _surface{};
-	
+
+	inline static VkRenderPass _renderPass;
 	inline static VkPipelineLayout _pipelineLayout;
+	inline static VkPipeline _graphicsPipeline;
+
+	inline static std::vector<VkFramebuffer> _swapChainFramebuffers;
+
+	inline static VkCommandPool _commandPool;
+	inline static std::vector<VkCommandBuffer> _commandBuffers;
+
+	inline static std::vector<VkSemaphore> _imageAvailableSemaphores;
+	inline static std::vector<VkSemaphore> _renderFinishedSemaphores;
+	inline static std::vector<VkFence> _inFlightFences;
+	constexpr static int MAX_FRAMES_IN_FLIGHT = 2;
+	inline static uint32_t currentFrame = 0;
 };
