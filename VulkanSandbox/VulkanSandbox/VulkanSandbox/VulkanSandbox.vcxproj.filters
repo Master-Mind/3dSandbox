@@ -25,6 +25,15 @@
     <Filter Include="Source Files\Utils">
       <UniqueIdentifier>{c68e3eb1-456a-49e2-bcb2-1dfaf25c4dcc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Graphics\Shaders">
+      <UniqueIdentifier>{023f73c8-5bef-4d59-b204-59e15ccca09a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Data">
+      <UniqueIdentifier>{240227cf-e58c-400b-866d-af31aff48d07}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Data\Shaders">
+      <UniqueIdentifier>{c7880c91-348f-4af2-8332-59dcd3b647cb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VulkanSandbox.cpp">
@@ -42,6 +51,9 @@
     <ClCompile Include="Graphics\volk.c">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\AISandbox\AISandbox\Utils\utils.cpp">
+      <Filter>Source Files\Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Graphics.h">
@@ -56,5 +68,16 @@
     <ClInclude Include="Graphics\volk.h">
       <Filter>Header Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="Utils\utils.h">
+      <Filter>Header Files\Utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\Shaders\FragShader.frag">
+      <Filter>Source Files\Data\Shaders</Filter>
+    </None>
+    <None Include="Data\Shaders\VertShader.vert">
+      <Filter>Source Files\Data\Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

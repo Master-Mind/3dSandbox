@@ -141,6 +141,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\AISandbox\AISandbox\Utils\utils.cpp" />
     <ClCompile Include="Graphics\Graphics.cpp" />
     <ClCompile Include="Graphics\volk.c" />
     <ClCompile Include="Utils\CLogger.cpp" />
@@ -152,6 +153,11 @@
     <ClInclude Include="Graphics\volk.h" />
     <ClInclude Include="Utils\CLogger.h" />
     <ClInclude Include="Utils\PrimativeVal.h" />
+    <ClInclude Include="Utils\utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\Shaders\FragShader.frag" />
+    <None Include="Data\Shaders\VertShader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
