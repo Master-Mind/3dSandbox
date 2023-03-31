@@ -51,7 +51,7 @@
     <ClCompile Include="Graphics\volk.c">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\AISandbox\AISandbox\Utils\utils.cpp">
+    <ClCompile Include="Utils\utils.cpp">
       <Filter>Source Files\Utils</Filter>
     </ClCompile>
   </ItemGroup>

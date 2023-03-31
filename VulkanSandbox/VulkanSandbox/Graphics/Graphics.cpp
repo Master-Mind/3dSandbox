@@ -4,12 +4,53 @@
 #include <set>
 #include <GLFW/glfw3.h>
 #include <filesystem>
-#include <iostream>
 
 #include "../Utils/CLogger.h"
 #include "../Utils/utils.h"
+#include <glm/glm.hpp>
+#include <array>
 
 using namespace std;
+using namespace glm;
+
+struct Vertex
+{
+    vec2 pos;
+    vec3 color;
+
+	static VkVertexInputBindingDescription getBindingDescription()
+	{
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions()
+	{
+        array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+        return attributeDescriptions;
+    }
+};
+
+const std::vector<Vertex> vertices = {
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
 
 const vector<const char*> Graphics::_validationLayers = {
     "VK_LAYER_KHRONOS_validation"
@@ -76,8 +117,9 @@ void Graphics::Init()
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     _window = glfwCreateWindow(_width, _height, "Vulkan window", nullptr, nullptr);
+    glfwSetFramebufferSizeCallback(_window, FramebufferResizeCallback);
     
     VkResult result = volkInitialize();
 
@@ -94,6 +136,7 @@ void Graphics::Init()
     CreateGraphicsPipeline();
     CreateFramebuffers();
     CreateCommandPool();
+    CreateVertexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
 }
@@ -377,10 +420,10 @@ VkExtent2D Graphics::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabiliti
             static_cast<uint32_t>(height)
         };
 
-        actualExtent.width = clamp(actualExtent.width,
+        actualExtent.width = std::clamp(actualExtent.width,
             capabilities.minImageExtent.width,
             capabilities.maxImageExtent.width);
-        actualExtent.height = clamp(actualExtent.height,
+        actualExtent.height = std::clamp(actualExtent.height,
             capabilities.minImageExtent.height,
             capabilities.maxImageExtent.height);
 
@@ -526,6 +569,39 @@ void Graphics::CreateImageViews()
     }
 }
 
+void Graphics::RecreateSwapChain()
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(_window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(_window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(_device);
+
+    CleanupSwapChain();
+
+    CreateSwapChain();
+    CreateImageViews();
+    CreateFramebuffers();
+}
+
+void Graphics::CleanupSwapChain()
+{
+    for (auto framebuffer : _swapChainFramebuffers)
+    {
+        vkDestroyFramebuffer(_device, framebuffer, nullptr);
+    }
+
+    for (auto imageView : _swapChainImageViews)
+    {
+        vkDestroyImageView(_device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(_device, _swapChain, nullptr);
+}
+
 void Graphics::CreateRenderPass()
 {
     VkAttachmentDescription colorAttachment{};
@@ -608,6 +684,13 @@ void Graphics::CreateGraphicsPipeline()
     vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
     vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -794,6 +877,61 @@ void Graphics::CreateFramebuffers()
     }
 }
 
+void Graphics::FramebufferResizeCallback(GLFWwindow* window, int width, int height)
+{
+    _framebufferResized = true;
+}
+
+void Graphics::CreateVertexBuffer()
+{
+    VkBufferCreateInfo bufferInfo{};
+
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkResult result = vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer);
+    Assert(result == VK_SUCCESS, "Failed to create vertex buffer!", { {"Error Code", result} });
+
+	VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(_device, _vertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	result = vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory);
+    Assert(result == VK_SUCCESS, "Failed to allocate vertex buffer!", { {"Error Code", result} });
+
+    result = vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0);
+    Assert(result == VK_SUCCESS, "Failed to bind vertex buffer!", { {"Error Code", result} });
+
+    void* data;
+    vkMapMemory(_device, _vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+    vkUnmapMemory(_device, _vertexBufferMemory);
+}
+
+uint32_t Graphics::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    Assert(false, "Couldn't find the right memory type!", {{"Filter", typeFilter}});
+
+    return UINT32_MAX;
+}
+
 void Graphics::CreateCommandPool()
 {
     VkCommandPoolCreateInfo poolInfo{};
@@ -842,6 +980,10 @@ void Graphics::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
 
+    VkBuffer vertexBuffers[] = { _vertexBuffer };
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -856,7 +998,7 @@ void Graphics::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     scissor.extent = _swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    vkCmdDraw(commandBuffer, vertices.size(), 1, 0, 0);
     vkCmdEndRenderPass(commandBuffer);
     VkResult endResult = vkEndCommandBuffer(commandBuffer);
     Assert(endResult == VK_SUCCESS, "Failed to end command buffer!", { {"Error Code", endResult} });
@@ -890,10 +1032,22 @@ void Graphics::CreateSyncObjects()
 void Graphics::DrawFrame()
 {
     vkWaitForFences(_device, 1, &_inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(_device, 1, &_inFlightFences[currentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        RecreateSwapChain();
+
+        _framebufferResized = false;
+
+        return;
+    }
+
+    Assert(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to acquire swap chain image!", {{"Error code", result}});
+
+    vkResetFences(_device, 1, &_inFlightFences[currentFrame]);
 
     vkResetCommandBuffer(_commandBuffers[currentFrame], 0);
     RecordCommandBuffer(_commandBuffers[currentFrame], imageIndex);
@@ -926,7 +1080,19 @@ void Graphics::DrawFrame()
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr; // Optional
-    vkQueuePresentKHR(_presentQueue, &presentInfo);
+    result = vkQueuePresentKHR(_presentQueue, &presentInfo);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || _framebufferResized)
+    {
+        RecreateSwapChain();
+
+        _framebufferResized = false;
+
+        return;
+    }
+
+    Assert(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to acquire swap chain image!", { {"Error code", result} });
+
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -956,21 +1122,14 @@ void Graphics::DeInit()
 
     vkDestroyCommandPool(_device, _commandPool, nullptr);
 
-    for (auto framebuffer : _swapChainFramebuffers) 
-    {
-        vkDestroyFramebuffer(_device, framebuffer, nullptr);
-    }
+    CleanupSwapChain();
+
+    vkDestroyBuffer(_device, _vertexBuffer, nullptr);
+    vkFreeMemory(_device, _vertexBufferMemory, nullptr);
 
     vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
     vkDestroyRenderPass(_device, _renderPass, nullptr);
-
-    for (auto imageView : _swapChainImageViews)
-    {
-        vkDestroyImageView(_device, imageView, nullptr);
-    }
-
-    vkDestroySwapchainKHR(_device, _swapChain, nullptr);
 
     if constexpr (enableValidationLayers)
     {

@@ -51,6 +51,8 @@ private:
 
 	static void CreateSwapChain();
 	static void CreateImageViews();
+	static void RecreateSwapChain();
+	static void CleanupSwapChain();
 
 	static void CreateRenderPass();
 	static void CreateGraphicsPipeline();
@@ -58,6 +60,10 @@ private:
 	static VkShaderModule CreateShaderModule(std::vector<char>& code);
 
 	static void CreateFramebuffers();
+	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
+
+	static void CreateVertexBuffer();
+	static uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 	static void CreateCommandPool();
 	static void CreateCommandBuffers();
@@ -98,6 +104,9 @@ private:
 
 	inline static std::vector<VkFramebuffer> _swapChainFramebuffers;
 
+	inline static VkBuffer _vertexBuffer{};
+	inline static VkDeviceMemory _vertexBufferMemory;
+
 	inline static VkCommandPool _commandPool;
 	inline static std::vector<VkCommandBuffer> _commandBuffers;
 
@@ -106,4 +115,6 @@ private:
 	inline static std::vector<VkFence> _inFlightFences;
 	constexpr static int MAX_FRAMES_IN_FLIGHT = 2;
 	inline static uint32_t currentFrame = 0;
+
+	inline static bool _framebufferResized = false;
 };
