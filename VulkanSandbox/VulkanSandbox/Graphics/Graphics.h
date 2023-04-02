@@ -128,16 +128,20 @@ private:
 	static bool HasStencilComponent(VkFormat format);
 
 	static void CreateTextureImage();
-	static void CreateImage(uint32_t width, uint32_t height, VkFormat format, 
-		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, 
-		VkImage& image, VkDeviceMemory& imageMemory);
-	static void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+	static void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits samples,
+		VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, 
+		VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+	static void TransitionImageLayout(VkImage image, VkFormat format, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout);
 	static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-	static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+	static VkImageView CreateImageView(VkImage image, VkFormat format, uint32_t mipLevels, VkImageAspectFlags aspectFlags);
 	static void CreateTextureImageView();
 	static void CreateTextureSampler();
+	static void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
 	static void CreateSyncObjects();
+
+	static VkSampleCountFlagBits GetMaxUsableSampleCount();
+	static void CreateColorResources();
 
 	static void DrawFrame();
 	static void UpdateUniformBuffer(uint32_t currentImage);
@@ -193,6 +197,7 @@ private:
 
 	inline static VkBuffer _stagingBuffer;
 	inline static VkDeviceMemory _stagingBufferMemory;
+	inline static uint32_t _mipLevels;
 	inline static VkImage _textureImage;
 	inline static VkDeviceMemory _textureImageMemory;
 	inline static VkImageView _textureImageView;
@@ -209,6 +214,11 @@ private:
 	inline static uint32_t currentFrame = 0;
 
 	inline static bool _framebufferResized = false;
+
+	inline static VkSampleCountFlagBits _msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+	inline static VkImage _colorImage;
+	inline static VkDeviceMemory _colorImageMemory;
+	inline static VkImageView _colorImageView;
 
 	static glm::mat4 _model;
 	static glm::mat4 _view;
