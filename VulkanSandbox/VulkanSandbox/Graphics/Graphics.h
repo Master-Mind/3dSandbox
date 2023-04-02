@@ -2,8 +2,49 @@
 #include "volk.h"
 #include <vector>
 #include <optional>
+#include <glm/mat4x4.hpp>
+#include <array>
 
 struct GLFWwindow;
+
+struct Vertex
+{
+	glm::vec3 pos;
+	glm::vec3 color;
+	glm::vec2 texCoord;
+
+	static VkVertexInputBindingDescription getBindingDescription()
+	{
+		VkVertexInputBindingDescription bindingDescription{};
+		bindingDescription.binding = 0;
+		bindingDescription.stride = sizeof(Vertex);
+		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		return bindingDescription;
+	}
+
+	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
+	{
+		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+
+		attributeDescriptions[0].binding = 0;
+		attributeDescriptions[0].location = 0;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+		attributeDescriptions[1].binding = 0;
+		attributeDescriptions[1].location = 1;
+		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+		attributeDescriptions[2].binding = 0;
+		attributeDescriptions[2].location = 2;
+		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
+		return attributeDescriptions;
+	}
+};
 
 class Graphics
 {
@@ -54,6 +95,7 @@ private:
 	static void RecreateSwapChain();
 	static void CleanupSwapChain();
 
+	static void CreateDescriptorSetLayout();
 	static void CreateRenderPass();
 	static void CreateGraphicsPipeline();
 	static void CompileShaders();
@@ -62,16 +104,43 @@ private:
 	static void CreateFramebuffers();
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
 
+	static void LoadModel();
 	static void CreateVertexBuffer();
+	static void CreateIndexBuffer();
+	static void CreateUniformBuffers();
+	static void CreateDescriptorPool();
+	static void CreateDescriptorSets();
+	static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
+		VkMemoryPropertyFlags properties, VkBuffer& buffer, 
+		VkDeviceMemory& bufferMemory);
+	static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 	static uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 	static void CreateCommandPool();
 	static void CreateCommandBuffers();
 	static void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	static VkCommandBuffer BeginSingleTimeCommands();
+	static void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+	static void CreateDepthResources();
+	static VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+	static VkFormat FindDepthFormat();
+	static bool HasStencilComponent(VkFormat format);
+
+	static void CreateTextureImage();
+	static void CreateImage(uint32_t width, uint32_t height, VkFormat format, 
+		VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, 
+		VkImage& image, VkDeviceMemory& imageMemory);
+	static void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+	static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+	static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+	static void CreateTextureImageView();
+	static void CreateTextureSampler();
 
 	static void CreateSyncObjects();
 
 	static void DrawFrame();
+	static void UpdateUniformBuffer(uint32_t currentImage);
 
 	//glfw
 	inline static GLFWwindow* _window = nullptr;
@@ -99,16 +168,39 @@ private:
 	inline static VkSurfaceKHR _surface{};
 
 	inline static VkRenderPass _renderPass;
+	inline static VkDescriptorSetLayout _descriptorSetLayout;
+	inline static VkDescriptorPool _descriptorPool;
+	inline static std::vector<VkDescriptorSet> _descriptorSets;
 	inline static VkPipelineLayout _pipelineLayout;
 	inline static VkPipeline _graphicsPipeline;
 
 	inline static std::vector<VkFramebuffer> _swapChainFramebuffers;
 
+	//TODO: Use one vk buffer per model for vertices and indices
+	inline static std::vector<Vertex> _vertices;
+	inline static std::vector<uint32_t> _indices;
 	inline static VkBuffer _vertexBuffer{};
-	inline static VkDeviceMemory _vertexBufferMemory;
+	inline static VkDeviceMemory _vertexBufferMemory{};
+	inline static VkBuffer _indexBuffer{};
+	inline static VkDeviceMemory _indexBufferMemory{};
+
+	inline static std::vector<VkBuffer> _uniformBuffers;
+	inline static std::vector<VkDeviceMemory> _uniformBuffersMemory;
+	inline static std::vector<void*> _uniformBuffersMapped;
 
 	inline static VkCommandPool _commandPool;
 	inline static std::vector<VkCommandBuffer> _commandBuffers;
+
+	inline static VkBuffer _stagingBuffer;
+	inline static VkDeviceMemory _stagingBufferMemory;
+	inline static VkImage _textureImage;
+	inline static VkDeviceMemory _textureImageMemory;
+	inline static VkImageView _textureImageView;
+	inline static VkSampler _textureSampler;
+
+	inline static VkImage _depthImage;
+	inline static VkDeviceMemory _depthImageMemory;
+	inline static VkImageView _depthImageView;
 
 	inline static std::vector<VkSemaphore> _imageAvailableSemaphores;
 	inline static std::vector<VkSemaphore> _renderFinishedSemaphores;
@@ -117,4 +209,8 @@ private:
 	inline static uint32_t currentFrame = 0;
 
 	inline static bool _framebufferResized = false;
+
+	static glm::mat4 _model;
+	static glm::mat4 _view;
+	static glm::mat4 _proj;
 };

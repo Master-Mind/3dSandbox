@@ -6,6 +6,8 @@
     "glm",
 	"glfw3",
 	"volk",
-	"vulkan"
+	"vulkan",
+	"stb",
+	"assimp"
   ]
 }
