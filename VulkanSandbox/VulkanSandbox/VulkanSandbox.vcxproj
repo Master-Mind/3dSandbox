@@ -170,6 +170,7 @@
     <ClInclude Include="Utils\utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Data\Shaders\Compute\ParticleSystem.comp" />
     <None Include="Data\Shaders\FragShader.frag" />
     <None Include="Data\Shaders\VertShader.vert" />
   </ItemGroup>

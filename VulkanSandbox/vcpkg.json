@@ -5,8 +5,8 @@
   "dependencies": [
     "glm",
 	"glfw3",
-	"volk",
-	"vulkan",
+	"vulkan-memory-allocator-hpp",
+	"vulkan-hpp",
 	"stb",
 	"assimp"
   ]

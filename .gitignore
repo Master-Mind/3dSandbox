@@ -351,3 +351,9 @@ MigrationBackup/
 
 #vcpkg files
 vcpkg_installed/
+
+#logs
+.log
+
+*.bak
+*.orig

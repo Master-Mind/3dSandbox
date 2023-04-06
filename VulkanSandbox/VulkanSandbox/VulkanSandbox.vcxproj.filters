@@ -34,6 +34,9 @@
     <Filter Include="Source Files\Data\Shaders">
       <UniqueIdentifier>{c7880c91-348f-4af2-8332-59dcd3b647cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Data\Shaders\Compute">
+      <UniqueIdentifier>{bdbd7342-1846-4de5-8486-8be3cf75e88d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VulkanSandbox.cpp">
@@ -78,6 +81,9 @@
     </None>
     <None Include="Data\Shaders\VertShader.vert">
       <Filter>Source Files\Data\Shaders</Filter>
+    </None>
+    <None Include="Data\Shaders\Compute\ParticleSystem.comp">
+      <Filter>Source Files\Data\Shaders\Compute</Filter>
     </None>
   </ItemGroup>
 </Project>
