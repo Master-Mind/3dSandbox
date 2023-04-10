@@ -12,7 +12,9 @@
 
 int main() {
     Graphics::Init();
-
+    char *temp;
+    size_t tempsize;
+	errno_t err = _dupenv_s(&temp, &tempsize, "VK_INSTANCE_LAYERS");
     while (!Graphics::ShouldClose())
     {
         Graphics::Update();

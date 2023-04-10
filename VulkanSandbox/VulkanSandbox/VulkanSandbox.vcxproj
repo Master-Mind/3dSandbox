@@ -130,6 +130,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <ForceFileOutput>MultiplyDefinedSymbolOnly</ForceFileOutput>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -156,7 +157,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Graphics\Graphics.cpp" />
-    <ClCompile Include="Graphics\volk.c" />
     <ClCompile Include="Utils\CLogger.cpp" />
     <ClCompile Include="Utils\PrimativeVal.cpp" />
     <ClCompile Include="Utils\utils.cpp" />
@@ -164,7 +164,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Graphics.h" />
-    <ClInclude Include="Graphics\volk.h" />
     <ClInclude Include="Utils\CLogger.h" />
     <ClInclude Include="Utils\PrimativeVal.h" />
     <ClInclude Include="Utils\utils.h" />

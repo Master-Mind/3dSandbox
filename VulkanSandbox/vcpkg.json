@@ -4,10 +4,12 @@
   "version": "0.0.1",
   "dependencies": [
     "glm",
-	"glfw3",
-	"vulkan-memory-allocator-hpp",
-	"vulkan-hpp",
-	"stb",
-	"assimp"
+    "glfw3",
+    "vulkan",
+    "vulkan-headers",
+    "vulkan-memory-allocator-hpp",
+    "stb",
+    "assimp",
+    "shaderc"
   ]
 }

@@ -1,9 +1,10 @@
 #pragma once
-#include "volk.h"
 #include <vector>
 #include <optional>
 #include <glm/mat4x4.hpp>
 #include <array>
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+#include <vulkan/vulkan.hpp>
 
 struct GLFWwindow;
 
@@ -13,33 +14,33 @@ struct Vertex
 	glm::vec3 color;
 	glm::vec2 texCoord;
 
-	static VkVertexInputBindingDescription getBindingDescription()
+	static vk::VertexInputBindingDescription getBindingDescription()
 	{
-		VkVertexInputBindingDescription bindingDescription{};
+		vk::VertexInputBindingDescription bindingDescription{};
 		bindingDescription.binding = 0;
 		bindingDescription.stride = sizeof(Vertex);
-		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+		bindingDescription.inputRate = vk::VertexInputRate::eVertex;
+		
 		return bindingDescription;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
+	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
 	{
-		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+		std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
 		attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
 		attributeDescriptions[1].offset = offsetof(Vertex, color);
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
 		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
 		return attributeDescriptions;
@@ -63,9 +64,9 @@ private:
 
 	static void CreateSurface();
 
-	static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
+	static bool CheckDeviceExtensionSupport(vk::PhysicalDevice device);
 	static void PickPhysicalDevice();
-	static bool IsPhysicalDeviceSuitable(VkPhysicalDevice device);
+	static bool IsPhysicalDeviceSuitable(vk::PhysicalDevice device);
 
 	struct QueueFamilyIndices {
 		std::optional<uint32_t> graphicsFamily;
@@ -75,18 +76,18 @@ private:
 			return graphicsFamily.has_value() && presentFamily.has_value();
 		}
 	};
-	static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+	static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice device);
 
 	struct SwapChainSupportDetails {
-		VkSurfaceCapabilitiesKHR capabilities{};
-		std::vector<VkSurfaceFormatKHR> formats;
-		std::vector<VkPresentModeKHR> presentModes;
+		vk::SurfaceCapabilitiesKHR capabilities{};
+		std::vector<vk::SurfaceFormatKHR> formats;
+		std::vector<vk::PresentModeKHR> presentModes;
 	};
 
-	static SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
-	static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-	static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-	static VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+	static SwapChainSupportDetails QuerySwapChainSupport(vk::PhysicalDevice device);
+	static vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+	static vk::PresentModeKHR ChooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
+	static vk::Extent2D ChooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities);
 
 	static void CreateLogicalDevice();
 
@@ -99,7 +100,7 @@ private:
 	static void CreateRenderPass();
 	static void CreateGraphicsPipeline();
 	static void CompileShaders();
-	static VkShaderModule CreateShaderModule(std::vector<char>& code);
+	static vk::ShaderModule CreateShaderModule(std::vector<char>& code);
 
 	static void CreateFramebuffers();
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
@@ -110,37 +111,37 @@ private:
 	static void CreateUniformBuffers();
 	static void CreateDescriptorPool();
 	static void CreateDescriptorSets();
-	static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, 
-		VkMemoryPropertyFlags properties, VkBuffer& buffer, 
-		VkDeviceMemory& bufferMemory);
-	static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-	static uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	static void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, 
+		vk::MemoryPropertyFlags properties, vk::Buffer& buffer, 
+		vk::DeviceMemory& bufferMemory);
+	static void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+	static uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
 	static void CreateCommandPool();
 	static void CreateCommandBuffers();
-	static void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-	static VkCommandBuffer BeginSingleTimeCommands();
-	static void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+	static void RecordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
+	static vk::CommandBuffer BeginSingleTimeCommands();
+	static void EndSingleTimeCommands(vk::CommandBuffer commandBuffer);
 
 	static void CreateDepthResources();
-	static VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-	static VkFormat FindDepthFormat();
-	static bool HasStencilComponent(VkFormat format);
+	static vk::Format FindSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+	static vk::Format FindDepthFormat();
+	static bool HasStencilComponent(vk::Format format);
 
 	static void CreateTextureImage();
-	static void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits samples,
-		VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, 
-		VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-	static void TransitionImageLayout(VkImage image, VkFormat format, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout);
-	static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-	static VkImageView CreateImageView(VkImage image, VkFormat format, uint32_t mipLevels, VkImageAspectFlags aspectFlags);
+	static void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits samples,
+		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
+		vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory);
+	static void TransitionImageLayout(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+	static void CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+	static vk::ImageView CreateImageView(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageAspectFlags aspectFlags);
 	static void CreateTextureImageView();
 	static void CreateTextureSampler();
-	static void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+	static void GenerateMipmaps(vk::Image image, vk::Format imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
 	static void CreateSyncObjects();
 
-	static VkSampleCountFlagBits GetMaxUsableSampleCount();
+	static vk::SampleCountFlagBits GetMaxUsableSampleCount();
 	static void CreateColorResources();
 
 	static void DrawFrame();
@@ -152,73 +153,73 @@ private:
 	inline static int _height = 600;
 
 	//vulkan
-	inline static VkInstance _instance;
+	inline static vk::Instance _instance;
 	const static std::vector<const char*> _validationLayers;
-	inline static VkDebugUtilsMessengerEXT _debugMessenger{};
+	inline static vk::DebugUtilsMessengerEXT _debugMessenger{};
 
-	inline static VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
-	inline static VkDevice  _device = VK_NULL_HANDLE;
+	inline static vk::PhysicalDevice _physicalDevice = VK_NULL_HANDLE;
+	inline static vk::Device  _device = VK_NULL_HANDLE;
 	inline static QueueFamilyIndices _queueFamilyIndices;
-	inline static VkQueue _graphicsQueue{};
-	inline static VkQueue _presentQueue{};
+	inline static vk::Queue _graphicsQueue{};
+	inline static vk::Queue _presentQueue{};
 	const static std::vector<const char*> _deviceExtensions;
 
-	inline static VkSwapchainKHR _swapChain{};
-	inline static std::vector<VkImage> _swapChainImages;
-	inline static VkFormat _swapChainImageFormat{};
-	inline static VkExtent2D _swapChainExtent{};
-	inline static std::vector<VkImageView> _swapChainImageViews;
+	inline static vk::SwapchainKHR _swapChain{};
+	inline static std::vector<vk::Image> _swapChainImages;
+	inline static vk::Format _swapChainImageFormat{};
+	inline static vk::Extent2D _swapChainExtent{};
+	inline static std::vector<vk::ImageView> _swapChainImageViews;
 
-	inline static VkSurfaceKHR _surface{};
+	inline static vk::SurfaceKHR _surface{};
 
-	inline static VkRenderPass _renderPass;
-	inline static VkDescriptorSetLayout _descriptorSetLayout;
-	inline static VkDescriptorPool _descriptorPool;
-	inline static std::vector<VkDescriptorSet> _descriptorSets;
-	inline static VkPipelineLayout _pipelineLayout;
-	inline static VkPipeline _graphicsPipeline;
+	inline static vk::RenderPass _renderPass;
+	inline static vk::DescriptorSetLayout _descriptorSetLayout;
+	inline static vk::DescriptorPool _descriptorPool;
+	inline static std::vector<vk::DescriptorSet> _descriptorSets;
+	inline static vk::PipelineLayout _pipelineLayout;
+	inline static vk::Pipeline _graphicsPipeline;
 
-	inline static std::vector<VkFramebuffer> _swapChainFramebuffers;
+	inline static std::vector<vk::Framebuffer> _swapChainFramebuffers;
 
 	//TODO: Use one vk buffer per model for vertices and indices
 	inline static std::vector<Vertex> _vertices;
 	inline static std::vector<uint32_t> _indices;
-	inline static VkBuffer _vertexBuffer{};
-	inline static VkDeviceMemory _vertexBufferMemory{};
-	inline static VkBuffer _indexBuffer{};
-	inline static VkDeviceMemory _indexBufferMemory{};
+	inline static vk::Buffer _vertexBuffer{};
+	inline static vk::DeviceMemory _vertexBufferMemory{};
+	inline static vk::Buffer _indexBuffer{};
+	inline static vk::DeviceMemory _indexBufferMemory{};
 
-	inline static std::vector<VkBuffer> _uniformBuffers;
-	inline static std::vector<VkDeviceMemory> _uniformBuffersMemory;
+	inline static std::vector<vk::Buffer> _uniformBuffers;
+	inline static std::vector<vk::DeviceMemory> _uniformBuffersMemory;
 	inline static std::vector<void*> _uniformBuffersMapped;
 
-	inline static VkCommandPool _commandPool;
-	inline static std::vector<VkCommandBuffer> _commandBuffers;
+	inline static vk::CommandPool _commandPool;
+	inline static std::vector<vk::CommandBuffer> _commandBuffers;
 
-	inline static VkBuffer _stagingBuffer;
-	inline static VkDeviceMemory _stagingBufferMemory;
+	inline static vk::Buffer _stagingBuffer;
+	inline static vk::DeviceMemory _stagingBufferMemory;
 	inline static uint32_t _mipLevels;
-	inline static VkImage _textureImage;
-	inline static VkDeviceMemory _textureImageMemory;
-	inline static VkImageView _textureImageView;
-	inline static VkSampler _textureSampler;
+	inline static vk::Image _textureImage;
+	inline static vk::DeviceMemory _textureImageMemory;
+	inline static vk::ImageView _textureImageView;
+	inline static vk::Sampler _textureSampler;
 
-	inline static VkImage _depthImage;
-	inline static VkDeviceMemory _depthImageMemory;
-	inline static VkImageView _depthImageView;
+	inline static vk::Image _depthImage;
+	inline static vk::DeviceMemory _depthImageMemory;
+	inline static vk::ImageView _depthImageView;
 
-	inline static std::vector<VkSemaphore> _imageAvailableSemaphores;
-	inline static std::vector<VkSemaphore> _renderFinishedSemaphores;
-	inline static std::vector<VkFence> _inFlightFences;
+	inline static std::vector<vk::Semaphore> _imageAvailableSemaphores;
+	inline static std::vector<vk::Semaphore> _renderFinishedSemaphores;
+	inline static std::vector<vk::Fence> _inFlightFences;
 	constexpr static int MAX_FRAMES_IN_FLIGHT = 2;
 	inline static uint32_t currentFrame = 0;
 
 	inline static bool _framebufferResized = false;
 
-	inline static VkSampleCountFlagBits _msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-	inline static VkImage _colorImage;
-	inline static VkDeviceMemory _colorImageMemory;
-	inline static VkImageView _colorImageView;
+	inline static vk::SampleCountFlagBits _msaaSamples = vk::SampleCountFlagBits::e1;
+	inline static vk::Image _colorImage;
+	inline static vk::DeviceMemory _colorImageMemory;
+	inline static vk::ImageView _colorImageView;
 
 	static glm::mat4 _model;
 	static glm::mat4 _view;
