@@ -7,7 +7,7 @@
     "glfw3",
     "vulkan",
     "vulkan-headers",
-    "vulkan-memory-allocator-hpp",
+    "vulkan-memory-allocator",
     "stb",
     "assimp",
     "shaderc"

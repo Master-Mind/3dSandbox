@@ -4,6 +4,7 @@
 #include <glm/mat4x4.hpp>
 #include <array>
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+#include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
 struct GLFWwindow;
@@ -91,6 +92,8 @@ private:
 
 	static void CreateLogicalDevice();
 
+	static void CreateVMAAllocator();
+
 	static void CreateSwapChain();
 	static void CreateImageViews();
 	static void RecreateSwapChain();
@@ -113,7 +116,7 @@ private:
 	static void CreateDescriptorSets();
 	static void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, 
 		vk::MemoryPropertyFlags properties, vk::Buffer& buffer, 
-		vk::DeviceMemory& bufferMemory);
+		VmaAllocation& bufferMemory, uint32_t memoryTypeBits = 0);
 	static void CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 	static uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -131,7 +134,7 @@ private:
 	static void CreateTextureImage();
 	static void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits samples,
 		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
-		vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory);
+		vk::MemoryPropertyFlags properties, vk::Image& image, VmaAllocation& imageMemory);
 	static void TransitionImageLayout(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 	static void CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
 	static vk::ImageView CreateImageView(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageAspectFlags aspectFlags);
@@ -185,27 +188,27 @@ private:
 	inline static std::vector<Vertex> _vertices;
 	inline static std::vector<uint32_t> _indices;
 	inline static vk::Buffer _vertexBuffer{};
-	inline static vk::DeviceMemory _vertexBufferMemory{};
+	inline static VmaAllocation _vertexBufferMemory{};
 	inline static vk::Buffer _indexBuffer{};
-	inline static vk::DeviceMemory _indexBufferMemory{};
+	inline static VmaAllocation _indexBufferMemory{};
 
 	inline static std::vector<vk::Buffer> _uniformBuffers;
-	inline static std::vector<vk::DeviceMemory> _uniformBuffersMemory;
+	inline static std::vector<VmaAllocation> _uniformBuffersMemory;
 	inline static std::vector<void*> _uniformBuffersMapped;
 
 	inline static vk::CommandPool _commandPool;
 	inline static std::vector<vk::CommandBuffer> _commandBuffers;
 
 	inline static vk::Buffer _stagingBuffer;
-	inline static vk::DeviceMemory _stagingBufferMemory;
+	inline static VmaAllocation _stagingBufferMemory;
 	inline static uint32_t _mipLevels;
 	inline static vk::Image _textureImage;
-	inline static vk::DeviceMemory _textureImageMemory;
+	inline static VmaAllocation _textureImageMemory;
 	inline static vk::ImageView _textureImageView;
 	inline static vk::Sampler _textureSampler;
 
 	inline static vk::Image _depthImage;
-	inline static vk::DeviceMemory _depthImageMemory;
+	inline static VmaAllocation _depthImageMemory;
 	inline static vk::ImageView _depthImageView;
 
 	inline static std::vector<vk::Semaphore> _imageAvailableSemaphores;
@@ -218,10 +221,12 @@ private:
 
 	inline static vk::SampleCountFlagBits _msaaSamples = vk::SampleCountFlagBits::e1;
 	inline static vk::Image _colorImage;
-	inline static vk::DeviceMemory _colorImageMemory;
+	inline static VmaAllocation _colorImageMemory;
 	inline static vk::ImageView _colorImageView;
 
 	static glm::mat4 _model;
 	static glm::mat4 _view;
 	static glm::mat4 _proj;
+
+	inline static VmaAllocator _allocator;
 };

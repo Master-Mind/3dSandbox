@@ -1,4 +1,6 @@
 #include "Graphics.h"
+
+#include <unordered_map>
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 #include <algorithm>
@@ -16,9 +18,16 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <shaderc/shaderc.hpp>
+#define VMA_VULKAN_VERSION 1001000 
+#define VMA_IMPLEMENTATION
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+#include <vk_mem_alloc.h>
 
 #include "../Utils/CLogger.h"
 #include "../Utils/utils.h"
+
+const auto vulkanVersion = VK_API_VERSION_1_1;
 
 using namespace std;
 using namespace glm;
@@ -74,7 +83,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         "",
     "Device Address Binding"};
 
-    VkDebugUtilsMessageSeverityFlagBitsEXT minSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+    const VkDebugUtilsMessageSeverityFlagBitsEXT minSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 
     if (messageSeverity < minSeverity)
     {
@@ -128,6 +137,7 @@ void Graphics::Init()
     CreateSurface();
     PickPhysicalDevice();
     CreateLogicalDevice();
+    CreateVMAAllocator();
     CreateSwapChain();
     CreateImageViews();
     CreateRenderPass();
@@ -161,14 +171,14 @@ void Graphics::CreateInstance()
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = vulkanVersion;
 
     vk::InstanceCreateInfo createInfo{};
     createInfo.pApplicationInfo = &appInfo;
 
     vector<const char*> reqExtensions = GetRequiredExtensions();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(reqExtensions.size());
-    createInfo.ppEnabledExtensionNames = reqExtensions.data(); uint32_t extensionCount = 0;
+    createInfo.ppEnabledExtensionNames = reqExtensions.data();
 
     Assert(!enableValidationLayers || CheckValidationLayerSupport(), "Validation layers requested, but not available!");
 
@@ -510,6 +520,22 @@ void Graphics::CreateLogicalDevice()
     VULKAN_HPP_DEFAULT_DISPATCHER.init(_device);
 }
 
+void Graphics::CreateVMAAllocator()
+{
+    VmaVulkanFunctions vulkanFunctions = {};
+    vulkanFunctions.vkGetInstanceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr;
+
+	VmaAllocatorCreateInfo allocatorInfo = {};
+	allocatorInfo.physicalDevice = _physicalDevice;
+	allocatorInfo.device = _device;
+	allocatorInfo.instance = _instance;
+    allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+    allocatorInfo.vulkanApiVersion = vulkanVersion;
+
+	vmaCreateAllocator(&allocatorInfo, &_allocator);
+}
+
 void Graphics::CreateSurface()
 {
     VkSurfaceKHR rawSurface;
@@ -620,11 +646,9 @@ void Graphics::RecreateSwapChain()
 void Graphics::CleanupSwapChain()
 {
     _device.destroyImageView(_colorImageView, nullptr);
-    _device.destroyImage(_colorImage, nullptr);
-    _device.freeMemory(_colorImageMemory, nullptr);
+    vmaDestroyImage(_allocator, _colorImage, _colorImageMemory);
     _device.destroyImageView(_depthImageView, nullptr);
-    _device.destroyImage(_depthImage, nullptr);
-    _device.freeMemory(_depthImageMemory, nullptr);
+    vmaDestroyImage(_allocator, _depthImage, _depthImageMemory);
 
     for (auto framebuffer : _swapChainFramebuffers)
     {
@@ -932,30 +956,15 @@ void Graphics::CompileShaders()
 
             shaderc_shader_kind shaderType = shaderc_glsl_infer_from_source;
 
-            if (shaderIt.path().extension() == ".vert")
-            {
-                shaderType = shaderc_glsl_vertex_shader;
-            }
-            else if (shaderIt.path().extension() == ".frag")
-            {
-                shaderType = shaderc_glsl_fragment_shader;
-            }
-            else if (shaderIt.path().extension() == ".tesc")
-            {
-                shaderType = shaderc_glsl_tess_control_shader;
-            }
-            else if (shaderIt.path().extension() == ".tese")
-            {
-                shaderType = shaderc_glsl_tess_evaluation_shader;
-            }
-            else if (shaderIt.path().extension() == ".geom")
-            {
-                shaderType = shaderc_glsl_geometry_shader;
-            }
-            else if (shaderIt.path().extension() == ".comp")
-            {
-                shaderType = shaderc_glsl_compute_shader;
-            }
+            const std::unordered_map<std::string_view, shaderc_shader_kind> defines = {
+	            {".vert", shaderc_glsl_vertex_shader},
+	            {".frag", shaderc_glsl_fragment_shader},
+	            {".tesc", shaderc_glsl_tess_control_shader},
+	            {".tese", shaderc_glsl_tess_evaluation_shader},
+	            {".geom", shaderc_glsl_geometry_shader},
+	            {".comp", shaderc_glsl_compute_shader} };
+
+            shaderType = defines.at(shaderIt.path().extension().string());
 
             auto ret = compiler.CompileGlslToSpv(inData.data(), inData.size(), shaderType, shaderIt.path().string().c_str());
            
@@ -1049,22 +1058,22 @@ void Graphics::CreateVertexBuffer()
     vk::DeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
 
 	vk::Buffer stagingBuffer;
-    vk::DeviceMemory stagingBufferMemory;
+    VmaAllocation stagingBufferMemory;
     CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-        stagingBuffer, stagingBufferMemory);
+        stagingBuffer, stagingBufferMemory, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
     void* data;
-    vk::Result result = _device.mapMemory(stagingBufferMemory, 0, bufferSize, vk::MemoryMapFlagBits{}, &data);
+    VkResult result = vmaMapMemory(_allocator, stagingBufferMemory, &data);
 
-    if (result != vk::Result::eSuccess)
+    if (result != VK_SUCCESS)
     {
         Error("Failed to map vertex memory!");
         return;
     }
 
     memcpy(data, _vertices.data(), bufferSize);
-    _device.unmapMemory(stagingBufferMemory);
+    vmaUnmapMemory(_allocator, stagingBufferMemory);
     
     CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
         vk::MemoryPropertyFlagBits::eDeviceLocal, _vertexBuffer,
@@ -1072,8 +1081,7 @@ void Graphics::CreateVertexBuffer()
 
     CopyBuffer(stagingBuffer, _vertexBuffer, bufferSize);
 
-    _device.destroyBuffer(stagingBuffer, nullptr);
-    _device.freeMemory(stagingBufferMemory, nullptr);
+    vmaDestroyBuffer(_allocator, stagingBuffer, stagingBufferMemory);
 }
 
 void Graphics::CreateIndexBuffer()
@@ -1081,22 +1089,22 @@ void Graphics::CreateIndexBuffer()
     vk::DeviceSize bufferSize = sizeof(_indices[0]) * _indices.size();
 
     vk::Buffer stagingBuffer;
-    vk::DeviceMemory stagingBufferMemory;
+    VmaAllocation stagingBufferMemory;
     CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, 
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, 
-        stagingBuffer, stagingBufferMemory);
+        stagingBuffer, stagingBufferMemory, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
     void* data;
-    vk::Result result = _device.mapMemory(stagingBufferMemory, 0, bufferSize, vk::MemoryMapFlagBits{}, &data);
+    VkResult result = vmaMapMemory(_allocator, stagingBufferMemory, &data);
 
-    if (result != vk::Result::eSuccess)
+    if (result != VK_SUCCESS)
     {
         Error("Failed to map index memory!");
         return;
     }
 
     memcpy(data, _indices.data(), bufferSize);
-    _device.unmapMemory(stagingBufferMemory);
+    vmaUnmapMemory(_allocator, stagingBufferMemory);
 
     CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
         vk::MemoryPropertyFlagBits::eDeviceLocal, _indexBuffer,
@@ -1104,8 +1112,7 @@ void Graphics::CreateIndexBuffer()
 
     CopyBuffer(stagingBuffer, _indexBuffer, bufferSize);
 
-    _device.destroyBuffer(stagingBuffer, nullptr);
-    _device.freeMemory(stagingBufferMemory, nullptr);
+    vmaDestroyBuffer(_allocator, stagingBuffer, stagingBufferMemory);
 }
 
 void Graphics::CreateUniformBuffers()
@@ -1119,11 +1126,11 @@ void Graphics::CreateUniformBuffers()
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-            _uniformBuffers[i], _uniformBuffersMemory[i]);
+            _uniformBuffers[i], _uniformBuffersMemory[i], VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-        vk::Result result = _device.mapMemory(_uniformBuffersMemory[i], 0, bufferSize, vk::MemoryMapFlagBits{}, &_uniformBuffersMapped[i]);
+        VkResult result = vmaMapMemory(_allocator, _uniformBuffersMemory[i], &_uniformBuffersMapped[i]);
 
-        if (result != vk::Result::eSuccess)
+        if (result != VK_SUCCESS)
         {
             Error("Failed to map uniform memory!");
         }
@@ -1192,27 +1199,28 @@ void Graphics::CreateDescriptorSets()
 }
 
 void Graphics::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
-    vk::Buffer& buffer, vk::DeviceMemory& bufferMemory)
+    vk::Buffer& buffer, VmaAllocation& bufferMemory, uint32_t memoryTypeBits)
 {
-    vk::BufferCreateInfo bufferInfo{};
+    VkBufferCreateInfo bufferInfo{};
     
     bufferInfo.size = size;
-    bufferInfo.usage = usage;
+    bufferInfo.usage = static_cast<VkBufferUsageFlags>(usage);
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 
-    vk::Result result = _device.createBuffer(&bufferInfo, nullptr, &buffer);
-    Assert(result == vk::Result::eSuccess, "Failed to create vertex buffer!", { {"Error Code", static_cast<uint32_t>(result)} });
+    VmaAllocationCreateInfo createAllocInfo = {};
+    createAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    createAllocInfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(properties);
+    createAllocInfo.flags = memoryTypeBits;
+    
+    VkBuffer tempbuff = buffer;
+    vk::Result result = static_cast<vk::Result>(vmaCreateBuffer(_allocator, &bufferInfo, &createAllocInfo, &tempbuff, &bufferMemory, nullptr));
+    //vk::Result result = _device.createBuffer(&bufferInfo, nullptr, &buffer);
+    Assert(result == vk::Result::eSuccess, "Failed to create buffer!", { {"Error Code", static_cast<uint32_t>(result)} });
+
+    buffer = tempbuff;
 
     vk::MemoryRequirements memRequirements;
     _device.getBufferMemoryRequirements(buffer, &memRequirements);
-
-    vk::MemoryAllocateInfo allocInfo{};
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-    result = _device.allocateMemory(&allocInfo, nullptr, &bufferMemory);
-    Assert(result == vk::Result::eSuccess, "Failed to allocate memory buffer!", { {"Error Code", static_cast<uint32_t>(result)} });
-
-    _device.bindBufferMemory(buffer, bufferMemory, 0);
 }
 
 void Graphics::CopyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
@@ -1402,7 +1410,7 @@ void Graphics::CreateTextureImage()
 {
     int texWidth, texHeight, texChannels;
     stbi_uc* pixels = stbi_load("Data/Textures/viking_room.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    vk::DeviceSize imageSize = texWidth * texHeight * 4;
+    const vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(texWidth) * texHeight * 4;
 
     Assert(pixels, "Could not load texture!");
 
@@ -1410,13 +1418,13 @@ void Graphics::CreateTextureImage()
 
     CreateBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, 
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-        _stagingBuffer, _stagingBufferMemory);
+        _stagingBuffer, _stagingBufferMemory, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
     void* data;
-    vk::Result result = _device.mapMemory(_stagingBufferMemory, 0, imageSize, {}, &data);
-    Assert(result == vk::Result::eSuccess, "Failed to map textur memory!", { {"Error Code", static_cast<uint32_t>(result)} });
+    VkResult result = vmaMapMemory(_allocator, _stagingBufferMemory, &data);
+    Assert(result == VK_SUCCESS, "Failed to map texture memory!", { {"Error Code", static_cast<uint32_t>(result)} });
     memcpy(data, pixels, imageSize);
-    _device.unmapMemory(_stagingBufferMemory);
+    vmaUnmapMemory(_allocator, _stagingBufferMemory);
 
     stbi_image_free(pixels);
 
@@ -1430,12 +1438,11 @@ void Graphics::CreateTextureImage()
     CopyBufferToImage(_stagingBuffer, _textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
     GenerateMipmaps(_textureImage, vk::Format::eR8G8B8A8Srgb, texWidth, texHeight, _mipLevels);
 
-    _device.destroyBuffer(_stagingBuffer, nullptr);
-    _device.freeMemory(_stagingBufferMemory, nullptr);
+    vmaDestroyBuffer(_allocator, _stagingBuffer, _stagingBufferMemory);
 }
 
 void Graphics::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits samples, vk::Format format, vk::ImageTiling tiling,
-    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory)
+    vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image& image, VmaAllocation& imageMemory)
 {
 
     vk::ImageCreateInfo imageInfo{};
@@ -1453,20 +1460,11 @@ void Graphics::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, 
     imageInfo.flags = {}; // Optional
     imageInfo.samples = samples;
 
-    vk::Result result = _device.createImage(&imageInfo, nullptr, &image);
-    Assert(result == vk::Result::eSuccess, "Failed to create image!", { {"Error Code", static_cast<uint32_t>(result)} });
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-    vk::MemoryRequirements memRequirements;
-    _device.getImageMemoryRequirements(image, &memRequirements);
-
-    vk::MemoryAllocateInfo allocInfo{};
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-    result = _device.allocateMemory(&allocInfo, nullptr, &imageMemory);
-    Assert(result == vk::Result::eSuccess, "Failed to allocate image memory!", { {"Error Code", static_cast<uint32_t>(result)} });
-
-    _device.bindImageMemory(image, imageMemory, 0);
+    vmaCreateImage(_allocator, reinterpret_cast<VkImageCreateInfo*>(&imageInfo),
+        &allocInfo, reinterpret_cast<VkImage*>(&image), &imageMemory, nullptr);
 }
 
 void Graphics::TransitionImageLayout(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
@@ -1879,26 +1877,24 @@ void Graphics::DeInit()
 
     _device.destroySampler(_textureSampler, nullptr);
     _device.destroyImageView(_textureImageView, nullptr);
-    _device.destroyImage(_textureImage, nullptr);
-    _device.freeMemory(_textureImageMemory, nullptr);
+    vmaDestroyImage(_allocator, _textureImage, _textureImageMemory);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        _device.destroyBuffer(_uniformBuffers[i], nullptr);
-        _device.freeMemory(_uniformBuffersMemory[i], nullptr);
+        vmaDestroyBuffer(_allocator, _uniformBuffers[i], _uniformBuffersMemory[i]);
     }
 
     _device.destroyDescriptorPool(_descriptorPool, nullptr);
 	_device.destroyDescriptorSetLayout(_descriptorSetLayout, nullptr);
 
-    _device.destroyBuffer(_indexBuffer, nullptr);
-    _device.freeMemory(_indexBufferMemory, nullptr);
-    _device.destroyBuffer(_vertexBuffer, nullptr);
-    _device.freeMemory(_vertexBufferMemory, nullptr);
+    vmaDestroyBuffer(_allocator, _indexBuffer, _indexBufferMemory);
+    vmaDestroyBuffer(_allocator, _vertexBuffer, _vertexBufferMemory);
 
     _device.destroyPipeline(_graphicsPipeline, nullptr);
     _device.destroyPipelineLayout(_pipelineLayout, nullptr);
     _device.destroyRenderPass(_renderPass, nullptr);
+
+    vmaDestroyAllocator(_allocator);
 
     if constexpr (enableValidationLayers)
     {
