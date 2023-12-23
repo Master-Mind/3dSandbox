@@ -7,46 +7,9 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
+class Model;
+class Texture;
 struct GLFWwindow;
-
-struct Vertex
-{
-	glm::vec3 pos;
-	glm::vec3 color;
-	glm::vec2 texCoord;
-
-	static vk::VertexInputBindingDescription getBindingDescription()
-	{
-		vk::VertexInputBindingDescription bindingDescription{};
-		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(Vertex);
-		bindingDescription.inputRate = vk::VertexInputRate::eVertex;
-		
-		return bindingDescription;
-	}
-
-	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
-	{
-		std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
-
-		attributeDescriptions[0].binding = 0;
-		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
-		attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-		attributeDescriptions[1].binding = 0;
-		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
-		attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-		attributeDescriptions[2].binding = 0;
-		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
-		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
-
-		return attributeDescriptions;
-	}
-};
 
 class Graphics
 {
@@ -55,6 +18,8 @@ public:
 	static bool ShouldClose();
 	static void Update();
 	static void DeInit();
+	friend class Texture;
+	friend class Model;
 private:
 	static void CreateInstance();
 	static bool CheckValidationLayerSupport();
@@ -109,8 +74,6 @@ private:
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
 
 	static void LoadModel();
-	static void CreateVertexBuffer();
-	static void CreateIndexBuffer();
 	static void CreateUniformBuffers();
 	static void CreateDescriptorPool();
 	static void CreateDescriptorSets();
@@ -138,7 +101,6 @@ private:
 	static void TransitionImageLayout(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 	static void CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
 	static vk::ImageView CreateImageView(vk::Image image, vk::Format format, uint32_t mipLevels, vk::ImageAspectFlags aspectFlags);
-	static void CreateTextureImageView();
 	static void CreateTextureSampler();
 	static void GenerateMipmaps(vk::Image image, vk::Format imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
@@ -184,14 +146,6 @@ private:
 
 	inline static std::vector<vk::Framebuffer> _swapChainFramebuffers;
 
-	//TODO: Use one vk buffer per model for vertices and indices
-	inline static std::vector<Vertex> _vertices;
-	inline static std::vector<uint32_t> _indices;
-	inline static vk::Buffer _vertexBuffer{};
-	inline static VmaAllocation _vertexBufferMemory{};
-	inline static vk::Buffer _indexBuffer{};
-	inline static VmaAllocation _indexBufferMemory{};
-
 	inline static std::vector<vk::Buffer> _uniformBuffers;
 	inline static std::vector<VmaAllocation> _uniformBuffersMemory;
 	inline static std::vector<void*> _uniformBuffersMapped;
@@ -202,10 +156,10 @@ private:
 	inline static vk::Buffer _stagingBuffer;
 	inline static VmaAllocation _stagingBufferMemory;
 	inline static uint32_t _mipLevels;
-	inline static vk::Image _textureImage;
-	inline static VmaAllocation _textureImageMemory;
-	inline static vk::ImageView _textureImageView;
-	inline static vk::Sampler _textureSampler;
+	static Texture *_texture;
+	inline static vk::Sampler _defaultTextureSampler;
+
+	static Model *_modelAsset;
 
 	inline static vk::Image _depthImage;
 	inline static VmaAllocation _depthImageMemory;

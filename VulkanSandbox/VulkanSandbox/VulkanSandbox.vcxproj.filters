@@ -37,6 +37,18 @@
     <Filter Include="Source Files\Data\Shaders\Compute">
       <UniqueIdentifier>{bdbd7342-1846-4de5-8486-8be3cf75e88d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets">
+      <UniqueIdentifier>{16d4746a-1353-4e9a-8438-97eadc92a04d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Graphics">
+      <UniqueIdentifier>{e195aa1c-b7ae-43c7-a3b4-93a7b74fa46b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets">
+      <UniqueIdentifier>{cae091fc-5d85-4f38-ad36-35fb1a94314c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Graphics">
+      <UniqueIdentifier>{800e31bc-f0c8-46fc-ac39-61bdc38fba29}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="VulkanSandbox.cpp">
@@ -54,6 +66,12 @@
     <ClCompile Include="Utils\utils.cpp">
       <Filter>Source Files\Utils</Filter>
     </ClCompile>
+    <ClCompile Include="Assets\Graphics\Texture.cpp">
+      <Filter>Source Files\Assets\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Assets\Graphics\Model.cpp">
+      <Filter>Source Files\Assets\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Graphics\Graphics.h">
@@ -67,6 +85,15 @@
     </ClInclude>
     <ClInclude Include="Utils\utils.h">
       <Filter>Header Files\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Assets\Graphics\Model.h">
+      <Filter>Header Files\Assets\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Assets\Graphics\Texture.h">
+      <Filter>Header Files\Assets\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Assets\Asset.h">
+      <Filter>Header Files\Assets</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

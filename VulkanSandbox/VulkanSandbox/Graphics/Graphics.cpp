@@ -27,6 +27,9 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #include "../Utils/CLogger.h"
 #include "../Utils/utils.h"
 
+#include "../Assets/Graphics/Texture.h"
+#include "../Assets/Graphics/Model.h"
+
 const auto vulkanVersion = VK_API_VERSION_1_1;
 
 using namespace std;
@@ -35,18 +38,6 @@ using namespace glm;
 mat4 Graphics::_model = mat4(1);
 mat4 Graphics::_view = mat4(1);
 mat4 Graphics::_proj = mat4(1);
-
-const vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-};
 
 const vector<uint16_t> indices = {
     0, 1, 2, 2, 3, 0,
@@ -60,6 +51,9 @@ const vector<const char*> Graphics::_validationLayers = {
 const vector<const char*> Graphics::_deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
+
+Texture *Graphics::_texture = new Texture{ "Data/Textures/viking_room.png" };
+Model *Graphics::_modelAsset = new Model{""};
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -148,11 +142,8 @@ void Graphics::Init()
     CreateDepthResources();
     CreateFramebuffers();
     CreateTextureImage();
-    CreateTextureImageView();
     CreateTextureSampler();
     LoadModel();
-    CreateVertexBuffer();
-    CreateIndexBuffer();
     CreateUniformBuffers();
     CreateDescriptorPool();
     CreateDescriptorSets();
@@ -802,8 +793,8 @@ void Graphics::CreateGraphicsPipeline()
     vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
     vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    auto bindingDescription = Model::Vertex::getBindingDescription();
+    auto attributeDescriptions = Model::Vertex::getAttributeDescriptions();
 
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
@@ -1024,95 +1015,7 @@ void Graphics::FramebufferResizeCallback(GLFWwindow* window, int width, int heig
 
 void Graphics::LoadModel()
 {
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile("Data/Models/viking_room.obj", aiProcess_Triangulate | aiProcess_FlipUVs);
-
-    Assert(scene, "Could not load model");
-
-    for (unsigned i = 0; i < scene->mNumMeshes; ++i)
-    {
-        aiMesh* curMesh = scene->mMeshes[i];
-
-        for (unsigned j = 0; j < curMesh->mNumVertices; ++j)
-        {
-            Vertex curVer{};
-
-            curVer.pos = { curMesh->mVertices[j].x, curMesh->mVertices[j].y, curMesh->mVertices[j].z };
-            curVer.color = { 1, 1, 1 };
-            curVer.texCoord = { curMesh->mTextureCoords[0][j].x, curMesh->mTextureCoords[0][j].y };
-
-            _vertices.push_back(curVer);
-        }
-
-        for (unsigned int i = 0; i < curMesh->mNumFaces; i++)
-        {
-            aiFace face = curMesh->mFaces[i];
-            for (unsigned int j = 0; j < face.mNumIndices; j++)
-                _indices.push_back(face.mIndices[j]);
-        }
-    }
-}
-
-void Graphics::CreateVertexBuffer()
-{
-    vk::DeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
-
-	vk::Buffer stagingBuffer;
-    VmaAllocation stagingBufferMemory;
-    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-        stagingBuffer, stagingBufferMemory, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-    void* data;
-    VkResult result = vmaMapMemory(_allocator, stagingBufferMemory, &data);
-
-    if (result != VK_SUCCESS)
-    {
-        Error("Failed to map vertex memory!");
-        return;
-    }
-
-    memcpy(data, _vertices.data(), bufferSize);
-    vmaUnmapMemory(_allocator, stagingBufferMemory);
-    
-    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-        vk::MemoryPropertyFlagBits::eDeviceLocal, _vertexBuffer,
-        _vertexBufferMemory);
-
-    CopyBuffer(stagingBuffer, _vertexBuffer, bufferSize);
-
-    vmaDestroyBuffer(_allocator, stagingBuffer, stagingBufferMemory);
-}
-
-void Graphics::CreateIndexBuffer()
-{
-    vk::DeviceSize bufferSize = sizeof(_indices[0]) * _indices.size();
-
-    vk::Buffer stagingBuffer;
-    VmaAllocation stagingBufferMemory;
-    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, 
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, 
-        stagingBuffer, stagingBufferMemory, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-    void* data;
-    VkResult result = vmaMapMemory(_allocator, stagingBufferMemory, &data);
-
-    if (result != VK_SUCCESS)
-    {
-        Error("Failed to map index memory!");
-        return;
-    }
-
-    memcpy(data, _indices.data(), bufferSize);
-    vmaUnmapMemory(_allocator, stagingBufferMemory);
-
-    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
-        vk::MemoryPropertyFlagBits::eDeviceLocal, _indexBuffer,
-        _indexBufferMemory);
-
-    CopyBuffer(stagingBuffer, _indexBuffer, bufferSize);
-
-    vmaDestroyBuffer(_allocator, stagingBuffer, stagingBufferMemory);
+    _modelAsset->Load();
 }
 
 void Graphics::CreateUniformBuffers()
@@ -1164,7 +1067,7 @@ void Graphics::CreateDescriptorSets()
 
     _descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
     vk::Result result = _device.allocateDescriptorSets(&allocInfo, _descriptorSets.data());
-    Assert(result == vk::Result::eSuccess, "Failed to sets!", { {"Error Code", static_cast<uint32_t>(result)} });
+    Assert(result == vk::Result::eSuccess, "Failed to create sets!", { {"Error Code", static_cast<uint32_t>(result)} });
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -1175,8 +1078,8 @@ void Graphics::CreateDescriptorSets()
 
         vk::DescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        imageInfo.imageView = _textureImageView;
-        imageInfo.sampler = _textureSampler;
+        imageInfo.imageView = _texture->_textureImageView;
+        imageInfo.sampler = _defaultTextureSampler;
 
         std::array<vk::WriteDescriptorSet, 2> descriptorWrites{};
         
@@ -1296,12 +1199,12 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
 
     commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _graphicsPipeline);
-
-    vk::Buffer vertexBuffers[] = { _vertexBuffer };
+    //TODO: Move this to model.cpp
+    vk::Buffer vertexBuffers[] = { _modelAsset->_vertexBuffer };
     vk::DeviceSize offsets[] = { 0 };
     commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
 
-    commandBuffer.bindIndexBuffer(_indexBuffer, 0, vk::IndexType::eUint32);
+    commandBuffer.bindIndexBuffer(_modelAsset->_indexBuffer, 0, vk::IndexType::eUint32);
 
     vk::Viewport viewport{};
     viewport.x = 0.0f;
@@ -1318,7 +1221,7 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer commandBuffer, uint32_t ima
     commandBuffer.setScissor(0, 1, &scissor);
 
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelineLayout, 0, 1, &_descriptorSets[currentFrame], 0, nullptr);
-    commandBuffer.drawIndexed(static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+    commandBuffer.drawIndexed(static_cast<uint32_t>(_modelAsset->_indices.size()), 1, 0, 0, 0);
     commandBuffer.endRenderPass();
     commandBuffer.end();
 }
@@ -1408,37 +1311,7 @@ bool Graphics::HasStencilComponent(vk::Format format)
 
 void Graphics::CreateTextureImage()
 {
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("Data/Textures/viking_room.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    const vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(texWidth) * texHeight * 4;
-
-    Assert(pixels, "Could not load texture!");
-
-    _mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-
-    CreateBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, 
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-        _stagingBuffer, _stagingBufferMemory, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-    void* data;
-    VkResult result = vmaMapMemory(_allocator, _stagingBufferMemory, &data);
-    Assert(result == VK_SUCCESS, "Failed to map texture memory!", { {"Error Code", static_cast<uint32_t>(result)} });
-    memcpy(data, pixels, imageSize);
-    vmaUnmapMemory(_allocator, _stagingBufferMemory);
-
-    stbi_image_free(pixels);
-
-    CreateImage(texWidth, texHeight, _mipLevels, vk::SampleCountFlagBits::e1, vk::Format::eR8G8B8A8Srgb,
-        vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-        vk::MemoryPropertyFlagBits::eDeviceLocal,
-        _textureImage, _textureImageMemory);
-
-    TransitionImageLayout(_textureImage, vk::Format::eR8G8B8A8Srgb, _mipLevels,
-        vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-    CopyBufferToImage(_stagingBuffer, _textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-    GenerateMipmaps(_textureImage, vk::Format::eR8G8B8A8Srgb, texWidth, texHeight, _mipLevels);
-
-    vmaDestroyBuffer(_allocator, _stagingBuffer, _stagingBufferMemory);
+    _texture->Load();
 }
 
 void Graphics::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits samples, vk::Format format, vk::ImageTiling tiling,
@@ -1593,11 +1466,6 @@ vk::ImageView Graphics::CreateImageView(vk::Image image, vk::Format format, uint
     return imageView;
 }
 
-void Graphics::CreateTextureImageView()
-{
-    _textureImageView = CreateImageView(_textureImage, vk::Format::eR8G8B8A8Srgb, _mipLevels, vk::ImageAspectFlagBits::eColor);
-}
-
 void Graphics::CreateTextureSampler()
 {
     vk::SamplerCreateInfo samplerInfo{};
@@ -1621,7 +1489,7 @@ void Graphics::CreateTextureSampler()
     samplerInfo.compareEnable = VK_FALSE;
     samplerInfo.compareOp = vk::CompareOp::eAlways;
 
-    vk::Result result = _device.createSampler(&samplerInfo, nullptr, &_textureSampler);
+    vk::Result result = _device.createSampler(&samplerInfo, nullptr, &_defaultTextureSampler);
     Assert(result == vk::Result::eSuccess, "failed to create texture image view!", { {"Error Code", static_cast<uint32_t>(result)} });
 }
 
@@ -1875,9 +1743,7 @@ void Graphics::DeInit()
 
     CleanupSwapChain();
 
-    _device.destroySampler(_textureSampler, nullptr);
-    _device.destroyImageView(_textureImageView, nullptr);
-    vmaDestroyImage(_allocator, _textureImage, _textureImageMemory);
+    _device.destroySampler(_defaultTextureSampler, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -1886,9 +1752,6 @@ void Graphics::DeInit()
 
     _device.destroyDescriptorPool(_descriptorPool, nullptr);
 	_device.destroyDescriptorSetLayout(_descriptorSetLayout, nullptr);
-
-    vmaDestroyBuffer(_allocator, _indexBuffer, _indexBufferMemory);
-    vmaDestroyBuffer(_allocator, _vertexBuffer, _vertexBufferMemory);
 
     _device.destroyPipeline(_graphicsPipeline, nullptr);
     _device.destroyPipelineLayout(_pipelineLayout, nullptr);

@@ -156,6 +156,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Assets\Graphics\Model.cpp" />
+    <ClCompile Include="Assets\Graphics\Texture.cpp" />
     <ClCompile Include="Graphics\Graphics.cpp" />
     <ClCompile Include="Utils\CLogger.cpp" />
     <ClCompile Include="Utils\PrimativeVal.cpp" />
@@ -163,6 +165,9 @@
     <ClCompile Include="VulkanSandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Assets\Asset.h" />
+    <ClInclude Include="Assets\Graphics\Model.h" />
+    <ClInclude Include="Assets\Graphics\Texture.h" />
     <ClInclude Include="Graphics\Graphics.h" />
     <ClInclude Include="Utils\CLogger.h" />
     <ClInclude Include="Utils\PrimativeVal.h" />
